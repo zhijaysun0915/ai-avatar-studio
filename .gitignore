@@ -1,0 +1,17 @@
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Local runtime data & uploaded media
+data/
+
+# Environment & OS
+.env
+.DS_Store
+Thumbs.db
