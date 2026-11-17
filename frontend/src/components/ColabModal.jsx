@@ -58,13 +58,22 @@ export default function ColabModal({ open, settings, onClose, onSaved }) {
         </div>
 
         <div className="p-5 space-y-4 text-sm">
-          <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3.5 text-xs text-indigo-200 leading-relaxed">
-            請在 Google Colab 開啟專案內的{" "}
-            <code className="px-1.5 py-0.5 rounded bg-slate-950 text-cyan-300">
-              colab/AI_Avatar_Colab_Worker.ipynb
-            </code>
-            ，執行所有儲存格後，將產生的公開 Tunnel URL（例如{" "}
-            <code className="text-cyan-300">https://xxxx.trycloudflare.com</code>）貼到下方。
+          <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3.5 text-xs text-indigo-200 leading-relaxed space-y-1">
+            <div>
+              • 免費 T4 GPU：執行{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-950 text-cyan-300">
+                colab/AI_Avatar_Colab_Worker.ipynb
+              </code>
+            </div>
+            <div>
+              • MiniMax H3（需 L4 / G4 Colab Pro）：執行{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-950 text-cyan-300">
+                colab/AI_Avatar_H3_Colab_Worker.ipynb
+              </code>
+            </div>
+            <div className="opacity-80 pt-0.5">
+              執行完成後，將產生的 <code className="text-cyan-300">https://xxxx.trycloudflare.com</code> 貼到下方。
+            </div>
           </div>
 
           <label className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">

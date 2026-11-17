@@ -144,6 +144,7 @@ async def run_generation_pipeline(
                             "language": job.language,
                             "speed": str(tts_speed),
                             "ref_text": voice.ref_text or "",
+                            "engine": job.engine,
                         }
                         resp = await client.post(
                             f"{worker_url}/api/tts",
@@ -188,6 +189,7 @@ async def run_generation_pipeline(
                     resp = await client.post(
                         f"{worker_url}/api/lipsync",
                         headers=_auth_headers(settings),
+                        data={"engine": job.engine},
                         files=files,
                     )
                     resp.raise_for_status()

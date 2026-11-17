@@ -8,6 +8,7 @@ export default function StudioWorkspace({
   onJobCreated,
 }) {
   const [mode, setMode] = useState("text_to_video");
+  const [engine, setEngine] = useState("standard");
   const [scriptText, setScriptText] = useState(
     "大家好，歡迎來到 AI Avatar Studio。只要輸入文字，就能透過聲音克隆與人物對嘴技術，快速生成專屬的數位分身影片。"
   );
@@ -59,6 +60,7 @@ export default function StudioWorkspace({
     try {
       const job = await api.generate({
         mode,
+        engine,
         avatar_id: selectedAvatar.id,
         voice_id: mode === "text_to_video" ? selectedVoice?.id : null,
         script_text: mode === "text_to_video" ? scriptText : null,
@@ -126,6 +128,33 @@ export default function StudioWorkspace({
                 ← 請從左側選擇或上傳參考聲音
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Engine Selector */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="text-xs font-medium text-slate-300">AI 生成引擎</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => setEngine("standard")}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-medium border transition cursor-pointer ${
+                engine === "standard"
+                  ? "bg-indigo-600/20 border-indigo-500 text-indigo-200"
+                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              標準版 (T4 免費 GPU：F5-TTS + SadTalker)
+            </button>
+            <button
+              onClick={() => setEngine("minimax_h3")}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-medium border transition cursor-pointer ${
+                engine === "minimax_h3"
+                  ? "bg-cyan-600/20 border-cyan-500 text-cyan-200"
+                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              MiniMax H3 (L4/G4 Colab Pro)
+            </button>
           </div>
         </div>
 

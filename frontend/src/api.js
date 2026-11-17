@@ -82,6 +82,7 @@ async function runStandaloneJob(job, payload) {
         fd.append("speed", String(payload.tts_speed || 1.0));
         fd.append("ref_text", voice?.ref_text || "");
         fd.append("ref_audio", voice._file);
+        fd.append("engine", payload.engine || "standard");
         const res = await fetch(`${workerUrl}/api/tts`, {
           method: "POST",
           headers: colabHeaders(settings),
@@ -111,6 +112,7 @@ async function runStandaloneJob(job, payload) {
       const fd = new FormData();
       fd.append("avatar", avatar._file);
       fd.append("audio", audioBlob, "speech.wav");
+      fd.append("engine", payload.engine || "standard");
       const res = await fetch(`${workerUrl}/api/lipsync`, {
         method: "POST",
         headers: colabHeaders(settings),

@@ -252,6 +252,7 @@ async def create_generate_job(req: GenerateRequest, background_tasks: Background
     job = JobRecord(
         id=job_id,
         mode=req.mode,
+        engine=req.engine,
         avatar_id=avatar.id,
         avatar_name=avatar.name,
         voice_id=voice.id if voice else None,
