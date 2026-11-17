@@ -14,7 +14,7 @@ from store import now_iso, store
 
 
 def _auth_headers(settings: ColabSettings) -> Dict[str, str]:
-    headers: Dict[str, str] = {}
+    headers: Dict[str, str] = {"ngrok-skip-browser-warning": "true"}
     if settings.api_token.strip():
         headers["Authorization"] = f"Bearer {settings.api_token.strip()}"
     return headers

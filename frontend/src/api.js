@@ -36,7 +36,7 @@ function saveLocalSettings(s) {
 }
 
 function colabHeaders(settings) {
-  const h = {};
+  const h = { "ngrok-skip-browser-warning": "true" };
   if (settings.api_token?.trim()) {
     h["Authorization"] = `Bearer ${settings.api_token.trim()}`;
   }
