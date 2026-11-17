@@ -66,14 +66,14 @@ export default function AssetPanel({
 
   const handleYoutubeVoice = async () => {
     if (!ytUrl.trim()) {
-      setVoiceError("請輸入 YouTube 影片網址");
+      setVoiceError("請輸入影片或音訊網址");
       return;
     }
     setUploading(true);
     setVoiceError("");
     try {
       const created = await api.createVoiceFromYoutube({
-        name: voiceName.trim() || "YouTube 聲音樣本",
+        name: voiceName.trim() || "線上網址聲音樣本",
         url: ytUrl.trim(),
         start_sec: parseFloat(ytStart) || 0,
         duration_sec: parseFloat(ytDuration) || 12,
@@ -238,7 +238,7 @@ export default function AssetPanel({
                 }`}
               >
                 <Link2 className="w-3 h-3" />
-                YouTube 擷取
+                網址擷取 (FB / YT)
               </button>
             </div>
 
@@ -279,7 +279,7 @@ export default function AssetPanel({
               <div className="space-y-2">
                 <input
                   type="url"
-                  placeholder="貼上 YouTube 影片網址 (https://youtu.be/...)"
+                  placeholder="貼上 FB / Bilibili / YouTube / 音訊網址"
                   value={ytUrl}
                   onChange={(e) => setYtUrl(e.target.value)}
                   className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500"
@@ -320,7 +320,7 @@ export default function AssetPanel({
                   ) : (
                     <>
                       <Link2 className="w-3.5 h-3.5" />
-                      從 YouTube 擷取聲音模型
+                      從網址擷取聲音模型
                     </>
                   )}
                 </button>

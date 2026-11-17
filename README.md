@@ -45,7 +45,7 @@ flowchart LR
 ```
 
 ### 運作流程說明
-1. **素材管理（Asset Library）**：使用者於左側面板上傳「人物分身（JPG/PNG 照片或 MP4 影片）」與「參考聲音樣本（5～30 秒 WAV/MP3）」，後端將檔案儲存於 `data/uploads/` 並寫入 `data/db.json`。
+1. **素材管理（Asset Library）**：使用者於左側面板上傳「人物分身（JPG/PNG 照片或 MP4 影片）」與「參考聲音樣本（5～30 秒 WAV/MP3）」，亦支援透過「**網址擷取 (FB / YT)**」直接從 **Facebook 公開影片、Bilibili、SoundCloud、YouTube**（本機版適用）擷取指定秒數區間的音訊，後端將檔案儲存於 `data/uploads/` 並寫入 `data/db.json`。
 2. **雙模式工作區（Studio Workspace）**：
    * **模式 A（文字腳本 + 聲音克隆 $\rightarrow$ 對嘴影片）**：輸入台詞與語速，後端先呼叫 Colab `/api/tts` 由 F5-TTS 生成克隆語音 `.wav`，再將 `.wav` 與分身送往 `/api/lipsync` 由 Wav2Lip 合成對嘴 `.mp4`。
    * **模式 B（直接上傳語音 $\rightarrow$ 對嘴影片）**：跳過 TTS，直接把上傳的語音檔與分身送往 `/api/lipsync` 對嘴。

@@ -257,16 +257,16 @@ export const api = {
       }
       if (detail.includes("cookies") || detail.includes("authentication")) {
         throw new Error(
-          "YouTube 封鎖了 Google Colab 機房 IP（需登入驗證）。請改用本機網址 http://127.0.0.1:5173 進行 YouTube 擷取，或手動上傳音檔。"
+          "該平台封鎖了 Google Colab 機房 IP（需登入驗證）。可改用 Facebook 公開影片、本機網頁 http://127.0.0.1:5173，或手動上傳音檔。"
         );
       }
-      throw new Error(`Colab YouTube 擷取失敗: ${detail}`);
+      throw new Error(`Colab 網址擷取失敗: ${detail}`);
     }
     const blob = await res.blob();
-    const file = new File([blob], "youtube_voice.wav", { type: "audio/wav" });
+    const file = new File([blob], "url_voice.wav", { type: "audio/wav" });
     const item = {
       id: Math.random().toString(36).slice(2, 10),
-      name: name || "YouTube 聲音樣本",
+      name: name || "線上網址聲音樣本",
       filename: file.name,
       ref_text: ref_text || "",
       url: URL.createObjectURL(file),
