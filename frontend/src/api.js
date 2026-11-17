@@ -83,13 +83,48 @@ async function runStandaloneJob(job, payload) {
         fd.append("ref_text", voice?.ref_text || "");
         fd.append("ref_audio", voice._file);
         fd.append("engine", payload.engine || "standard");
-        const res = await fetch(`${workerUrl}/api/tts`, {
+        const startRes = await fetch(`${workerUrl}/api/tts/start`, {
           method: "POST",
           headers: colabHeaders(settings),
           body: fd,
         });
-        if (!res.ok) throw new Error(`Colab TTS HTTP ${res.status}`);
-        audioBlob = await res.blob();
+        if (startRes.ok) {
+          const { job_id: remoteId } = await startRes.json();
+          while (true) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const stRes = await fetch(`${workerUrl}/api/tts/status/${remoteId}`, {
+              headers: colabHeaders(settings),
+            });
+            if (!stRes.ok) throw new Error(`Colab TTS status HTTP ${stRes.status}`);
+            const stData = await stRes.json();
+            if (stData.status === "done") {
+              const res = await fetch(`${workerUrl}/api/tts/result/${remoteId}`, {
+                headers: colabHeaders(settings),
+              });
+              if (!res.ok) throw new Error(`Colab TTS result HTTP ${res.status}`);
+              audioBlob = await res.blob();
+              break;
+            }
+            if (stData.status === "failed") {
+              throw new Error(stData.error || "Colab TTS 失敗");
+            }
+          }
+        } else {
+          const fd2 = new FormData();
+          fd2.append("text", payload.script_text || "");
+          fd2.append("language", payload.language || "zh");
+          fd2.append("speed", String(payload.tts_speed || 1.0));
+          fd2.append("ref_text", voice?.ref_text || "");
+          fd2.append("ref_audio", voice._file);
+          fd2.append("engine", payload.engine || "standard");
+          const res = await fetch(`${workerUrl}/api/tts`, {
+            method: "POST",
+            headers: colabHeaders(settings),
+            body: fd2,
+          });
+          if (!res.ok) throw new Error(`Colab TTS HTTP ${res.status}`);
+          audioBlob = await res.blob();
+        }
         job.audio_url = URL.createObjectURL(audioBlob);
       } else {
         await new Promise((r) => setTimeout(r, 900));

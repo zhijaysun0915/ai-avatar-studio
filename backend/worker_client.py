@@ -137,23 +137,50 @@ async def run_generation_pipeline(
             if use_colab:
                 worker_url = settings.worker_url.strip().rstrip("/")
                 async with httpx.AsyncClient(timeout=300.0) as client:
+                    data = {
+                        "text": job.script_text or "",
+                        "language": job.language,
+                        "speed": str(tts_speed),
+                        "ref_text": voice.ref_text or "",
+                        "engine": job.engine,
+                    }
                     with open(voice_path, "rb") as vf:
-                        files = {"ref_audio": (voice_path.name, vf, "audio/wav")}
-                        data = {
-                            "text": job.script_text or "",
-                            "language": job.language,
-                            "speed": str(tts_speed),
-                            "ref_text": voice.ref_text or "",
-                            "engine": job.engine,
-                        }
-                        resp = await client.post(
-                            f"{worker_url}/api/tts",
+                        start_resp = await client.post(
+                            f"{worker_url}/api/tts/start",
                             headers=_auth_headers(settings),
                             data=data,
-                            files=files,
+                            files={"ref_audio": (voice_path.name, vf, "audio/wav")},
                         )
-                        resp.raise_for_status()
-                        out_wav.write_bytes(resp.content)
+                    if start_resp.status_code == 200:
+                        remote_id = start_resp.json()["job_id"]
+                        while True:
+                            await asyncio.sleep(2)
+                            st = await client.get(
+                                f"{worker_url}/api/tts/status/{remote_id}",
+                                headers=_auth_headers(settings),
+                            )
+                            st.raise_for_status()
+                            st_data = st.json()
+                            if st_data["status"] == "done":
+                                res_resp = await client.get(
+                                    f"{worker_url}/api/tts/result/{remote_id}",
+                                    headers=_auth_headers(settings),
+                                )
+                                res_resp.raise_for_status()
+                                out_wav.write_bytes(res_resp.content)
+                                break
+                            if st_data["status"] == "failed":
+                                raise RuntimeError(st_data.get("error") or "Colab TTS failed")
+                    else:
+                        with open(voice_path, "rb") as vf:
+                            resp = await client.post(
+                                f"{worker_url}/api/tts",
+                                headers=_auth_headers(settings),
+                                data=data,
+                                files={"ref_audio": (voice_path.name, vf, "audio/wav")},
+                            )
+                            resp.raise_for_status()
+                            out_wav.write_bytes(resp.content)
             else:
                 await asyncio.sleep(1.2)
                 _generate_demo_wav(out_wav, duration_sec=3.0)
