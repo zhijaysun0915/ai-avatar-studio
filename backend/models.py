@@ -26,6 +26,14 @@ class VoiceAsset(BaseModel):
     created_at: str
 
 
+class YoutubeVoiceRequest(BaseModel):
+    name: str = ""
+    url: str
+    start_sec: float = Field(default=0.0, ge=0.0)
+    duration_sec: float = Field(default=12.0, ge=3.0, le=45.0)
+    ref_text: str = ""
+
+
 class JobRecord(BaseModel):
     id: str
     mode: Literal["text_to_video", "audio_to_video"]

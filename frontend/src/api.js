@@ -225,6 +225,44 @@ export const api = {
     memVoices.unshift(item);
     return item;
   },
+  createVoiceFromYoutube: async ({ name, url, start_sec, duration_sec, ref_text }) => {
+    if (await detectBackend()) {
+      return request("/api/voices/from-youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, url, start_sec, duration_sec, ref_text }),
+      });
+    }
+    const settings = getLocalSettings();
+    const workerUrl = (settings.worker_url || "").trim().replace(/\/$/, "");
+    if (!workerUrl) {
+      throw new Error("純靜態網頁模式需先在右上角設定 Colab Worker URL 才能從 YouTube 擷取音訊");
+    }
+    const fd = new FormData();
+    fd.append("url", url);
+    fd.append("start_sec", String(start_sec ?? 0));
+    fd.append("duration_sec", String(duration_sec ?? 12));
+    const res = await fetch(`${workerUrl}/api/youtube-audio`, {
+      method: "POST",
+      headers: colabHeaders(settings),
+      body: fd,
+    });
+    if (!res.ok) {
+      throw new Error(`Colab YouTube 擷取失敗 (HTTP ${res.status})`);
+    }
+    const blob = await res.blob();
+    const file = new File([blob], "youtube_voice.wav", { type: "audio/wav" });
+    const item = {
+      id: Math.random().toString(36).slice(2, 10),
+      name: name || "YouTube 聲音樣本",
+      filename: file.name,
+      ref_text: ref_text || "",
+      url: URL.createObjectURL(file),
+      _file: file,
+    };
+    memVoices.unshift(item);
+    return item;
+  },
   deleteVoice: async (id) => {
     if (await detectBackend()) return request(`/api/voices/${id}`, { method: "DELETE" });
     const idx = memVoices.findIndex((v) => v.id === id);

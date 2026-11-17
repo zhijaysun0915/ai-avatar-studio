@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Image, Mic, Plus, Trash2, Upload, User, Video, Volume2 } from "lucide-react";
+import { Image, Link2, Loader2, Mic, Plus, Trash2, Upload, User, Video, Volume2 } from "lucide-react";
 import { api } from "../api";
 
 export default function AssetPanel({
@@ -19,6 +19,11 @@ export default function AssetPanel({
 
   const [voiceName, setVoiceName] = useState("");
   const [voiceRefText, setVoiceRefText] = useState("");
+  const [voiceSource, setVoiceSource] = useState("upload"); // "upload" | "youtube"
+  const [ytUrl, setYtUrl] = useState("");
+  const [ytStart, setYtStart] = useState("0");
+  const [ytDuration, setYtDuration] = useState("12");
+  const [voiceError, setVoiceError] = useState("");
   const voiceFileRef = useRef(null);
 
   const handleUploadAvatar = async (e) => {
@@ -40,6 +45,7 @@ export default function AssetPanel({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setVoiceError("");
     try {
       const created = await api.uploadVoice(
         voiceName || file.name.replace(/\.[^.]+$/, ""),
@@ -50,9 +56,38 @@ export default function AssetPanel({
       setVoiceRefText("");
       onSelectVoice(created.id);
       await onRefresh();
+    } catch (err) {
+      setVoiceError(err.message);
     } finally {
       setUploading(false);
       e.target.value = "";
+    }
+  };
+
+  const handleYoutubeVoice = async () => {
+    if (!ytUrl.trim()) {
+      setVoiceError("請輸入 YouTube 影片網址");
+      return;
+    }
+    setUploading(true);
+    setVoiceError("");
+    try {
+      const created = await api.createVoiceFromYoutube({
+        name: voiceName.trim() || "YouTube 聲音樣本",
+        url: ytUrl.trim(),
+        start_sec: parseFloat(ytStart) || 0,
+        duration_sec: parseFloat(ytDuration) || 12,
+        ref_text: voiceRefText.trim(),
+      });
+      setVoiceName("");
+      setVoiceRefText("");
+      setYtUrl("");
+      onSelectVoice(created.id);
+      await onRefresh();
+    } catch (err) {
+      setVoiceError(err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -187,6 +222,26 @@ export default function AssetPanel({
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="p-3 border-b border-slate-800/60 space-y-2">
+            <div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px]">
+              <button
+                onClick={() => { setVoiceSource("upload"); setVoiceError(""); }}
+                className={`py-1 rounded-md font-medium transition cursor-pointer ${
+                  voiceSource === "upload" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                上傳音檔
+              </button>
+              <button
+                onClick={() => { setVoiceSource("youtube"); setVoiceError(""); }}
+                className={`py-1 rounded-md font-medium transition cursor-pointer flex items-center justify-center gap-1 ${
+                  voiceSource === "youtube" ? "bg-rose-600/80 text-white" : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Link2 className="w-3 h-3" />
+                YouTube 擷取
+              </button>
+            </div>
+
             <input
               type="text"
               placeholder="聲音名稱（例如：講者聲線）"
@@ -201,21 +256,80 @@ export default function AssetPanel({
               onChange={(e) => setVoiceRefText(e.target.value)}
               className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
-            <input
-              ref={voiceFileRef}
-              type="file"
-              accept="audio/*"
-              onChange={handleUploadVoice}
-              className="hidden"
-            />
-            <button
-              onClick={() => voiceFileRef.current?.click()}
-              disabled={uploading}
-              className="w-full py-2 rounded-lg border border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/60 hover:bg-indigo-500/10 text-xs text-slate-300 flex items-center justify-center gap-1.5 transition cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-indigo-400" />
-              {uploading ? "上傳中..." : "上傳參考音檔 (5~30秒 WAV/MP3)"}
-            </button>
+
+            {voiceSource === "upload" ? (
+              <>
+                <input
+                  ref={voiceFileRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleUploadVoice}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => voiceFileRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full py-2 rounded-lg border border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/60 hover:bg-indigo-500/10 text-xs text-slate-300 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                  {uploading ? "上傳中..." : "上傳參考音檔 (5~30秒 WAV/MP3)"}
+                </button>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="url"
+                  placeholder="貼上 YouTube 影片網址 (https://youtu.be/...)"
+                  value={ytUrl}
+                  onChange={(e) => setYtUrl(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-slate-400 mb-0.5">開始秒數 (s)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={ytStart}
+                      onChange={(e) => setYtStart(e.target.value)}
+                      className="w-full px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-400 mb-0.5">擷取長度 (3~45s)</label>
+                    <input
+                      type="number"
+                      min="3"
+                      max="45"
+                      value={ytDuration}
+                      onChange={(e) => setYtDuration(e.target.value)}
+                      className="w-full px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleYoutubeVoice}
+                  disabled={uploading}
+                  className="w-full py-2 rounded-lg bg-rose-600/90 hover:bg-rose-500 disabled:opacity-50 text-xs font-medium text-white flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      擷取音訊中...
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="w-3.5 h-3.5" />
+                      從 YouTube 擷取聲音模型
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {voiceError && (
+              <div className="text-[11px] text-rose-400 break-all">{voiceError}</div>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">

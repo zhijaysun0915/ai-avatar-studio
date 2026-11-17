@@ -1,16 +1,19 @@
 import asyncio
+import shutil
+import subprocess
 import uuid
 from pathlib import Path
 from typing import List
 
+import httpx
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from config import AUDIO_INPUTS_DIR, AVATARS_DIR, DATA_DIR, OUTPUTS_DIR, VOICES_DIR
-from models import AvatarAsset, ColabSettings, GenerateRequest, JobRecord, VoiceAsset
+from models import AvatarAsset, ColabSettings, GenerateRequest, JobRecord, VoiceAsset, YoutubeVoiceRequest
 from store import now_iso, store
-from worker_client import check_colab_health, run_generation_pipeline
+from worker_client import _auth_headers, check_colab_health, run_generation_pipeline
 
 app = FastAPI(title="AI Avatar Studio API", version="1.0.0")
 
@@ -105,6 +108,88 @@ async def upload_voice(
         name=name.strip() or file.filename or "未命名聲音",
         filename=filename,
         ref_text=ref_text.strip(),
+        url=f"/media/uploads/voices/{filename}",
+        created_at=now_iso(),
+    )
+    return store.add_voice(asset)
+
+
+@app.post("/api/voices/from-youtube", response_model=VoiceAsset)
+async def create_voice_from_youtube(payload: YoutubeVoiceRequest):
+    url = payload.url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="請輸入有效的 YouTube 網址")
+
+    voice_id = uuid.uuid4().hex[:10]
+    filename = f"{voice_id}.wav"
+    dest = VOICES_DIR / filename
+
+    settings = store.get_settings()
+    ffmpeg_bin = shutil.which("ffmpeg")
+    ytdlp_bin = shutil.which("yt-dlp") or str(Path(__file__).resolve().parent / ".venv" / "Scripts" / "yt-dlp.exe")
+
+    # Prefer Colab worker if local ffmpeg isn't available and Colab is configured
+    if settings.worker_url.strip() and not settings.demo_mode and not ffmpeg_bin:
+        worker_url = settings.worker_url.strip().rstrip("/")
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            resp = await client.post(
+                f"{worker_url}/api/youtube-audio",
+                headers=_auth_headers(settings),
+                data={
+                    "url": url,
+                    "start_sec": str(payload.start_sec),
+                    "duration_sec": str(payload.duration_sec),
+                },
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Colab 擷取失敗: {resp.text[:300]}")
+            dest.write_bytes(resp.content)
+    elif Path(ytdlp_bin).exists() or shutil.which("yt-dlp"):
+        raw_tmp = VOICES_DIR / f"{voice_id}_raw.%(ext)s"
+        dl_cmd = [
+            ytdlp_bin if Path(ytdlp_bin).exists() else "yt-dlp",
+            "-f", "bestaudio/best",
+            "--no-playlist",
+            "-o", str(raw_tmp),
+            url,
+        ]
+        proc = await asyncio.to_thread(subprocess.run, dl_cmd, capture_output=True, text=True, timeout=120)
+        if proc.returncode != 0:
+            raise HTTPException(status_code=400, detail=f"YouTube 下載失敗: {proc.stderr[-300:]}")
+
+        downloaded = next(VOICES_DIR.glob(f"{voice_id}_raw.*"), None)
+        if not downloaded:
+            raise HTTPException(status_code=500, detail="找不到下載的音訊檔案")
+
+        try:
+            if ffmpeg_bin:
+                ff_cmd = [
+                    ffmpeg_bin, "-y",
+                    "-ss", str(payload.start_sec),
+                    "-t", str(payload.duration_sec),
+                    "-i", str(downloaded),
+                    "-ar", "24000", "-ac", "1",
+                    str(dest),
+                ]
+                ff_proc = await asyncio.to_thread(subprocess.run, ff_cmd, capture_output=True, text=True, timeout=60)
+                if ff_proc.returncode != 0 or not dest.exists():
+                    raise HTTPException(status_code=500, detail="FFmpeg 音訊裁切失敗")
+            else:
+                # Fallback without ffmpeg: keep original audio container
+                filename = f"{voice_id}{downloaded.suffix}"
+                dest = VOICES_DIR / filename
+                downloaded.rename(dest)
+        finally:
+            if downloaded.exists() and downloaded != dest:
+                downloaded.unlink(missing_ok=True)
+    else:
+        raise HTTPException(status_code=400, detail="本機未安裝 yt-dlp 或未連線 Colab Worker")
+
+    asset = VoiceAsset(
+        id=voice_id,
+        name=payload.name.strip() or "YouTube 聲音樣本",
+        filename=filename,
+        ref_text=payload.ref_text.strip(),
         url=f"/media/uploads/voices/{filename}",
         created_at=now_iso(),
     )
