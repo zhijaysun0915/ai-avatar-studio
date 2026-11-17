@@ -186,14 +186,46 @@ async def run_generation_pipeline(
                         "avatar": (avatar_path.name, avf, "application/octet-stream"),
                         "audio": (audio_path.name, auf, "audio/wav"),
                     }
-                    resp = await client.post(
-                        f"{worker_url}/api/lipsync",
+                    start_resp = await client.post(
+                        f"{worker_url}/api/lipsync/start",
                         headers=_auth_headers(settings),
                         data={"engine": job.engine},
                         files=files,
                     )
-                    resp.raise_for_status()
-                    out_mp4.write_bytes(resp.content)
+                if start_resp.status_code == 200:
+                    remote_id = start_resp.json()["job_id"]
+                    while True:
+                        await asyncio.sleep(3)
+                        st = await client.get(
+                            f"{worker_url}/api/lipsync/status/{remote_id}",
+                            headers=_auth_headers(settings),
+                        )
+                        st.raise_for_status()
+                        st_data = st.json()
+                        if st_data["status"] == "done":
+                            res_resp = await client.get(
+                                f"{worker_url}/api/lipsync/result/{remote_id}",
+                                headers=_auth_headers(settings),
+                            )
+                            res_resp.raise_for_status()
+                            out_mp4.write_bytes(res_resp.content)
+                            break
+                        if st_data["status"] == "failed":
+                            raise RuntimeError(st_data.get("error") or "Colab video generation failed")
+                else:
+                    with open(avatar_path, "rb") as avf, open(audio_path, "rb") as auf:
+                        files = {
+                            "avatar": (avatar_path.name, avf, "application/octet-stream"),
+                            "audio": (audio_path.name, auf, "audio/wav"),
+                        }
+                        resp = await client.post(
+                            f"{worker_url}/api/lipsync",
+                            headers=_auth_headers(settings),
+                            data={"engine": job.engine},
+                            files=files,
+                        )
+                        resp.raise_for_status()
+                        out_mp4.write_bytes(resp.content)
             video_url = f"/media/outputs/{out_mp4.name}"
         else:
             await asyncio.sleep(1.5)

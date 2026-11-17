@@ -113,14 +113,47 @@ async function runStandaloneJob(job, payload) {
       fd.append("avatar", avatar._file);
       fd.append("audio", audioBlob, "speech.wav");
       fd.append("engine", payload.engine || "standard");
-      const res = await fetch(`${workerUrl}/api/lipsync`, {
+      const startRes = await fetch(`${workerUrl}/api/lipsync/start`, {
         method: "POST",
         headers: colabHeaders(settings),
         body: fd,
       });
-      if (!res.ok) throw new Error(`Colab LipSync HTTP ${res.status}`);
-      const videoBlob = await res.blob();
-      job.video_url = URL.createObjectURL(videoBlob);
+      if (startRes.ok) {
+        const { job_id: remoteId } = await startRes.json();
+        while (true) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const stRes = await fetch(`${workerUrl}/api/lipsync/status/${remoteId}`, {
+            headers: colabHeaders(settings),
+          });
+          if (!stRes.ok) throw new Error(`Colab status HTTP ${stRes.status}`);
+          const stData = await stRes.json();
+          if (stData.status === "done") {
+            const vidRes = await fetch(`${workerUrl}/api/lipsync/result/${remoteId}`, {
+              headers: colabHeaders(settings),
+            });
+            if (!vidRes.ok) throw new Error(`Colab result HTTP ${vidRes.status}`);
+            const videoBlob = await vidRes.blob();
+            job.video_url = URL.createObjectURL(videoBlob);
+            break;
+          }
+          if (stData.status === "failed") {
+            throw new Error(stData.error || "Colab 影片生成失敗");
+          }
+        }
+      } else {
+        const fd2 = new FormData();
+        fd2.append("avatar", avatar._file);
+        fd2.append("audio", audioBlob, "speech.wav");
+        fd2.append("engine", payload.engine || "standard");
+        const res = await fetch(`${workerUrl}/api/lipsync`, {
+          method: "POST",
+          headers: colabHeaders(settings),
+          body: fd2,
+        });
+        if (!res.ok) throw new Error(`Colab LipSync HTTP ${res.status}`);
+        const videoBlob = await res.blob();
+        job.video_url = URL.createObjectURL(videoBlob);
+      }
     } else {
       await new Promise((r) => setTimeout(r, 900));
       if (avatar?.media_type === "video") {
