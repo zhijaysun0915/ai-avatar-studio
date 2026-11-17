@@ -126,25 +126,15 @@ async def create_voice_from_youtube(payload: YoutubeVoiceRequest):
 
     settings = store.get_settings()
     ffmpeg_bin = shutil.which("ffmpeg")
+    if not ffmpeg_bin:
+        try:
+            import imageio_ffmpeg
+            ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            ffmpeg_bin = None
     ytdlp_bin = shutil.which("yt-dlp") or str(Path(__file__).resolve().parent / ".venv" / "Scripts" / "yt-dlp.exe")
 
-    # Prefer Colab worker if local ffmpeg isn't available and Colab is configured
-    if settings.worker_url.strip() and not settings.demo_mode and not ffmpeg_bin:
-        worker_url = settings.worker_url.strip().rstrip("/")
-        async with httpx.AsyncClient(timeout=180.0) as client:
-            resp = await client.post(
-                f"{worker_url}/api/youtube-audio",
-                headers=_auth_headers(settings),
-                data={
-                    "url": url,
-                    "start_sec": str(payload.start_sec),
-                    "duration_sec": str(payload.duration_sec),
-                },
-            )
-            if resp.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Colab 擷取失敗: {resp.text[:300]}")
-            dest.write_bytes(resp.content)
-    elif Path(ytdlp_bin).exists() or shutil.which("yt-dlp"):
+    if Path(ytdlp_bin).exists() or shutil.which("yt-dlp"):
         raw_tmp = VOICES_DIR / f"{voice_id}_raw.%(ext)s"
         dl_cmd = [
             ytdlp_bin if Path(ytdlp_bin).exists() else "yt-dlp",
@@ -175,13 +165,27 @@ async def create_voice_from_youtube(payload: YoutubeVoiceRequest):
                 if ff_proc.returncode != 0 or not dest.exists():
                     raise HTTPException(status_code=500, detail="FFmpeg 音訊裁切失敗")
             else:
-                # Fallback without ffmpeg: keep original audio container
                 filename = f"{voice_id}{downloaded.suffix}"
                 dest = VOICES_DIR / filename
                 downloaded.rename(dest)
         finally:
             if downloaded.exists() and downloaded != dest:
                 downloaded.unlink(missing_ok=True)
+    elif settings.worker_url.strip() and not settings.demo_mode:
+        worker_url = settings.worker_url.strip().rstrip("/")
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            resp = await client.post(
+                f"{worker_url}/api/youtube-audio",
+                headers=_auth_headers(settings),
+                data={
+                    "url": url,
+                    "start_sec": str(payload.start_sec),
+                    "duration_sec": str(payload.duration_sec),
+                },
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Colab 擷取失敗: {resp.text[:300]}")
+            dest.write_bytes(resp.content)
     else:
         raise HTTPException(status_code=400, detail="本機未安裝 yt-dlp 或未連線 Colab Worker")
 

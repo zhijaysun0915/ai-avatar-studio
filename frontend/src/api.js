@@ -248,7 +248,19 @@ export const api = {
       body: fd,
     });
     if (!res.ok) {
-      throw new Error(`Colab YouTube 擷取失敗 (HTTP ${res.status})`);
+      let detail = `HTTP ${res.status}`;
+      try {
+        const errJson = await res.json();
+        detail = errJson.detail || detail;
+      } catch {
+        // ignore
+      }
+      if (detail.includes("cookies") || detail.includes("authentication")) {
+        throw new Error(
+          "YouTube 封鎖了 Google Colab 機房 IP（需登入驗證）。請改用本機網址 http://127.0.0.1:5173 進行 YouTube 擷取，或手動上傳音檔。"
+        );
+      }
+      throw new Error(`Colab YouTube 擷取失敗: ${detail}`);
     }
     const blob = await res.blob();
     const file = new File([blob], "youtube_voice.wav", { type: "audio/wav" });
