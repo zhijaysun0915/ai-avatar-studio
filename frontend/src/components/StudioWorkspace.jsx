@@ -132,9 +132,9 @@ export default function StudioWorkspace({
         </div>
 
         {/* Engine Selector */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3 space-y-2">
           <div className="text-xs font-medium text-slate-300">AI 生成引擎</div>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
             <button
               onClick={() => setEngine("standard")}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-medium border transition cursor-pointer ${
@@ -143,7 +143,7 @@ export default function StudioWorkspace({
                   : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
               }`}
             >
-              標準版 (T4 免費 GPU：F5-TTS + SadTalker)
+              標準版 (T4: F5-TTS + SadTalker)
             </button>
             <button
               onClick={() => setEngine("minimax_h3")}
@@ -153,7 +153,17 @@ export default function StudioWorkspace({
                   : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
               }`}
             >
-              MiniMax H3 (L4/G4 Colab Pro)
+              MiniMax H3 (L4: H3 TTS + H3 影片)
+            </button>
+            <button
+              onClick={() => setEngine("hybrid")}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-medium border transition cursor-pointer ${
+                engine === "hybrid"
+                  ? "bg-emerald-600/20 border-emerald-500 text-emerald-200"
+                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              混合高擬真 (L4: F5-TTS 聲線 + H3 影片)
             </button>
           </div>
         </div>

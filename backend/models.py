@@ -37,7 +37,7 @@ class YoutubeVoiceRequest(BaseModel):
 class JobRecord(BaseModel):
     id: str
     mode: Literal["text_to_video", "audio_to_video"]
-    engine: Literal["standard", "minimax_h3"] = "standard"
+    engine: Literal["standard", "minimax_h3", "hybrid"] = "standard"
     avatar_id: str
     avatar_name: str
     voice_id: Optional[str] = None
@@ -57,7 +57,7 @@ class JobRecord(BaseModel):
 
 class GenerateRequest(BaseModel):
     mode: Literal["text_to_video", "audio_to_video"] = "text_to_video"
-    engine: Literal["standard", "minimax_h3"] = "standard"
+    engine: Literal["standard", "minimax_h3", "hybrid"] = "standard"
     avatar_id: str
     voice_id: Optional[str] = None
     script_text: Optional[str] = None
